@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 function List() {
   const orders = [
     {
@@ -43,15 +45,29 @@ function List() {
       estado: "Entregado",
     },
   ];
+  const listEstatus: string[] = orders.map((x) => x.estado);
+
+  const [estatus, setEstatus] = useState("");
+
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between px-1">
         <h2 className="text-sm font-bold text-on-surface">
           Pedidos Registrados
         </h2>
-        <span className="text-xs text-secondary font-medium" id="orderCount">
-          {orders.length} pendientes
-        </span>
+
+        <select
+          value={estatus}
+          onChange={(t) => setEstatus(t.target.value)}
+          className="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-surface text-sm text-on-surface focus:outline-none focus:border-primary focus:bg-white transition-all"
+          id="productType"
+        >
+          {listEstatus.map((x) => (
+            <option key={x} value={x}>
+              {x}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="flex flex-col gap-2.5" id="orderList">
         {orders.map((item) => (
