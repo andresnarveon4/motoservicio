@@ -10,4 +10,23 @@ Regla.
     Copiar la solucion.
 
 
-    
+
+1.-Mostrar la ubicacion actual en el mapa
+        │
+        ▼
+2. Usuario escribe "Av. Las Camelias #420" en el Form
+        │
+        ▼
+3. Google Geocoding / Places Autocomplete
+   convierte el texto en coordenadas  →  { lat: 18.5141, lng: -88.3059 }
+        │
+        ▼
+4. Google Routes calcula origen → destino  →  3.8 km, 12 min
+        │
+        ▼
+5. POST /pedidos (NestJS)  →  INSERT en PostgreSQL
+   direccion, destino_lat, destino_lng, distancia_km, precio...
+        │
+        ▼
+6. GET /pedidos  →  la Lista y el Mapa leen lo mismo
+   y dibujan un marcador por pedido, sin volver a llamar a Google
