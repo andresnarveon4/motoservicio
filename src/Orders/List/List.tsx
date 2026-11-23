@@ -45,9 +45,13 @@ function List() {
       estado: "Entregado",
     },
   ];
-  const listEstatus: string[] = orders.map((x) => x.estado);
+  const listEstatus: string[] = [...new Set(orders.map((x) => x.estado))];
 
   const [estatus, setEstatus] = useState("");
+
+  const filteredOrders = estatus
+    ? orders.filter((order) => order.estado == estatus)
+    : orders;
 
   return (
     <section className="flex flex-col gap-3">
@@ -62,6 +66,7 @@ function List() {
           className="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-surface text-sm text-on-surface focus:outline-none focus:border-primary focus:bg-white transition-all"
           id="productType"
         >
+          <option value="">Todos</option>
           {listEstatus.map((x) => (
             <option key={x} value={x}>
               {x}
@@ -70,7 +75,7 @@ function List() {
         </select>
       </div>
       <div className="flex flex-col gap-2.5" id="orderList">
-        {orders.map((item) => (
+        {filteredOrders.map((item) => (
           <article
             className="bg-surface-container-lowest rounded-xl p-4 border border-border-subtle shadow-sm flex flex-col gap-2"
             key={item.nombre}
