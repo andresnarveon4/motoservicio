@@ -91,17 +91,27 @@ app.get("/api/categorias", async (req, res) => {
  *                     type: integer
  *                   nombre:
  *                     type: string
+ *                   apellido_paterno:
+ *                     type: string
+ *                   apellido_materno:
+ *                     type: string
+ *                     nullable: true
  *                   telefono:
  *                     type: string
  *                     nullable: true
- *                   creado_en:
+ *                   direccion:
  *                     type: string
- *                     format: date-time
+ *                     nullable: true
+ *                   correo:
+ *                     type: string
+ *                     nullable: true
  */
 app.get("/api/clientes", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, nombre, telefono, creado_en FROM clientes ORDER BY id",
+      `SELECT id, nombre, apellido_paterno, apellido_materno, telefono, direccion, correo
+       FROM clientes
+       ORDER BY id`,
     );
 
     res.json(result.rows);
@@ -141,8 +151,22 @@ app.get("/api/clientes", async (req, res) => {
  *                     type: integer
  *                   estado:
  *                     type: string
- *                   destino_direccion:
+ *                   estado_color:
  *                     type: string
+ *                     nullable: true
+ *                   repartidor_id:
+ *                     type: integer
+ *                   repartidor:
+ *                     type: string
+ *                   descripcion:
+ *                     type: string
+ *                     nullable: true
+ *                   direccion_origen:
+ *                     type: string
+ *                     nullable: true
+ *                   direccion_destino:
+ *                     type: string
+ *                     nullable: true
  *                   precio:
  *                     type: number
  */
@@ -152,17 +176,19 @@ app.get("/api/pedidos", async (req, res) => {
       SELECT
         pedidos.id,
         pedidos.cliente_id,
-        clientes.nombre AS cliente,
+        CONCAT_WS(' ', clientes.nombre, clientes.apellido_paterno, clientes.apellido_materno) AS cliente,
         pedidos.categoria_id,
         categorias.nombre AS categoria,
         pedidos.repartidor_id,
-        repartidores.nombre AS repartidor,
+        CONCAT_WS(' ', repartidores.nombre, repartidores.apellido_paterno, repartidores.apellido_materno) AS repartidor,
         pedidos.estado_id,
-        estados_pedido.nombre AS estado,
-        pedidos.origen_direccion,
+        estados.nombre AS estado,
+        estados.color AS estado_color,
+        pedidos.descripcion,
+        pedidos.direccion_origen,
         pedidos.origen_lat,
         pedidos.origen_lng,
-        pedidos.destino_direccion,
+        pedidos.direccion_destino,
         pedidos.destino_lat,
         pedidos.destino_lng,
         pedidos.distancia_km,
@@ -172,8 +198,8 @@ app.get("/api/pedidos", async (req, res) => {
       FROM pedidos
       JOIN clientes ON clientes.id = pedidos.cliente_id
       JOIN categorias ON categorias.id = pedidos.categoria_id
-      JOIN estados_pedido ON estados_pedido.id = pedidos.estado_id
-      LEFT JOIN repartidores ON repartidores.id = pedidos.repartidor_id
+      JOIN estados ON estados.id = pedidos.estado_id
+      JOIN repartidores ON repartidores.id = pedidos.repartidor_id
       ORDER BY pedidos.id DESC
     `);
 
@@ -199,7 +225,8 @@ app.get("/api/pedidos", async (req, res) => {
  *             required:
  *               - cliente_id
  *               - categoria_id
- *               - destino_direccion
+ *               - repartidor_id
+ *               - direccion_destino
  *               - precio
  *             properties:
  *               cliente_id:
@@ -208,17 +235,18 @@ app.get("/api/pedidos", async (req, res) => {
  *                 type: integer
  *               repartidor_id:
  *                 type: integer
- *                 nullable: true
  *               estado_id:
  *                 type: integer
  *                 description: Opcional; si se omite, usa el estado Pendiente
- *               origen_direccion:
+ *               descripcion:
+ *                 type: string
+ *               direccion_origen:
  *                 type: string
  *               origen_lat:
  *                 type: number
  *               origen_lng:
  *                 type: number
- *               destino_direccion:
+ *               direccion_destino:
  *                 type: string
  *               destino_lat:
  *                 type: number
@@ -242,12 +270,13 @@ app.post("/api/pedidos", async (req, res) => {
   const {
     cliente_id,
     categoria_id,
-    repartidor_id = null,
+    repartidor_id,
     estado_id,
-    origen_direccion,
+    descripcion,
+    direccion_origen,
     origen_lat,
     origen_lng,
-    destino_direccion,
+    direccion_destino,
     destino_lat,
     destino_lng,
     distancia_km,
@@ -258,12 +287,13 @@ app.post("/api/pedidos", async (req, res) => {
   if (
     !cliente_id ||
     !categoria_id ||
-    !destino_direccion ||
+    !repartidor_id ||
+    !direccion_destino ||
     precio === undefined
   ) {
     return res.status(400).json({
       error:
-        "cliente_id, categoria_id, destino_direccion y precio son obligatorios",
+        "cliente_id, categoria_id, repartidor_id, direccion_destino y precio son obligatorios",
     });
   }
 
@@ -272,7 +302,7 @@ app.post("/api/pedidos", async (req, res) => {
 
     if (!pedidoEstadoId) {
       const estado = await pool.query(
-        "SELECT id FROM estados_pedido WHERE nombre = 'Pendiente' LIMIT 1",
+        "SELECT id FROM estados WHERE nombre = 'Pendiente' LIMIT 1",
       );
 
       pedidoEstadoId = estado.rows[0]?.id;
@@ -290,27 +320,29 @@ app.post("/api/pedidos", async (req, res) => {
         categoria_id,
         repartidor_id,
         estado_id,
-        origen_direccion,
+        descripcion,
+        direccion_origen,
         origen_lat,
         origen_lng,
-        destino_direccion,
+        direccion_destino,
         destino_lat,
         destino_lng,
         distancia_km,
         duracion_min,
         precio
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         cliente_id,
         categoria_id,
         repartidor_id,
         pedidoEstadoId,
-        origen_direccion,
+        descripcion,
+        direccion_origen,
         origen_lat,
         origen_lng,
-        destino_direccion,
+        direccion_destino,
         destino_lat,
         destino_lng,
         distancia_km,
