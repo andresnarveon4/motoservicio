@@ -93,7 +93,10 @@ app.get("/api/pedidos", async (req, res) => {
             JOIN repartidores ON repartidores.id = pedidos.repartidor_id 
             ORDER BY pedidos.id DESC`,
     );
-    res.json(result.rows);
+
+    setTimeout(() => {
+      res.json(result.rows);
+    }, 1000);
   } catch (error) {
     console.error(error);
     res.status(500).json({
